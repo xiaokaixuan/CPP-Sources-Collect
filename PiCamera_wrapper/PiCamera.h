@@ -32,12 +32,12 @@ public:
 	bool open(const char* devname);
 	void close();
 
-	inline bool is_opened() const { return !camera_ptr; }
+	inline bool is_opened() const { return camera_ptr.get(); }
 
 	bool start_capture(int framerate = 30);
 	void stop_capture();
 
-	void registerFrameCallback(const std::function<void(const PICAM_OUT_FRAME& frame)>& func) { frame_callback = func; }
+	void registerFrameCallback(const std::function<void(const PICAM_OUT_FRAME& frame)>& callback) { frame_callback = callback; }
 
 private:
 	void requestCompleted(libcamera::Request* request);
@@ -50,7 +50,7 @@ private:
 	std::vector<std::unique_ptr<libcamera::Request>> requests_;
 
 	libcamera::ControlList controls_;
-	std::function<void(const PICAM_OUT_FRAME& frame)> frame_callback;
+	std::function<void(const PICAM_OUT_FRAME&)> frame_callback;
 	
 private:
 	static struct Initor

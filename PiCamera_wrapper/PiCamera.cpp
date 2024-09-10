@@ -19,6 +19,11 @@ void PiCamera::print_cameras()
 		return;
 	}
 	const std::vector<std::shared_ptr<libcamera::Camera>> cameras = sm_initor.sm_pcm->cameras();
+	if (cameras.empty())
+	{
+		perror("ERROR: Found no camera !!!\n");
+		return;
+	}
 	for (const auto& ptr : cameras)
 	{
 		printf("DEBUG: Found camera name: %s\n", ptr->id().c_str());
@@ -54,7 +59,7 @@ bool PiCamera::open(const char* devname)
 	camera_ptr = sm_initor.sm_pcm->get(devname);
 	if (!camera_ptr)
 	{
-		perror("ERROR: camera not found !!!\n");
+		perror("ERROR: Camera not found !!!\n");
 		return false;
 	}
 	// open camera
@@ -105,7 +110,7 @@ bool PiCamera::start_capture(int framerate)
 {
 	if (!camera_ptr)
 	{
-		perror("ERROR: camera not opened !!!\n");
+		perror("ERROR: Camera not opened !!!\n");
 		return false;
 	}
 	std::shared_ptr<libcamera::Request> request = camera_ptr->createRequest();
@@ -123,7 +128,8 @@ bool PiCamera::start_capture(int framerate)
 			fprintf(stderr, "ERROR: allocator_->allocate: %#x\n", ret);
 			return false;
 		}
-		for (const std::unique_ptr<libcamera::FrameBuffer>& buffer : allocator_->buffers(stream)) {
+		for (const std::unique_ptr<libcamera::FrameBuffer>& buffer : allocator_->buffers(stream))
+		{
 			std::unique_ptr<libcamera::Request> request = camera_ptr->createRequest();
 			if (!request)
 			{
@@ -151,7 +157,8 @@ bool PiCamera::start_capture(int framerate)
 		return false;
 	}
 
-	for (std::unique_ptr<libcamera::Request>& request : requests_) {
+	for (std::unique_ptr<libcamera::Request>& request : requests_)
+	{
 		if (camera_ptr->queueRequest(request.get()))
 		{
 			perror("ERROR: Failed to queue request !!!\n");
