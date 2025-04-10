@@ -10,7 +10,7 @@
 
 bool v4l2cxx::V4LCapture::xioctl(int fd, int request, void* arg)
 {
-	for (int try_i(0); try_i < 10; ++try_i)
+	for (int i(0); i < 10; ++i) // EAGAIN RETRY COUNT
 	{
 		int res = ioctl(fd, request, arg);
 		if (-1 != res) return true;
