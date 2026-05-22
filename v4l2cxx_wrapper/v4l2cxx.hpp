@@ -6,8 +6,6 @@
 #include <cstring>
 #include <linux/videodev2.h>
 
-#define ZERO_MEM(x) memset(&x, 0, sizeof(x))
-
 namespace v4l2cxx
 {
 	constexpr static int NUM_OF_MAP_BUFFER = 4;
@@ -21,19 +19,16 @@ namespace v4l2cxx
 	};
 	struct Buffer
 	{
-		void* start;
-		size_t length;
+		void* start{};
+		size_t length{};
 	};
 
 	class V4LCapture
 	{
 	public:
-		V4LCapture() { ZERO_MEM(m_buffers); }
+		V4LCapture() {}
 		V4LCapture(const std::string& devpath, unsigned int width = 640, unsigned int height = 480, PixFormat pix_fmt = PixFormat::PIX_FMT_MJPEG)
-			: m_devpath(devpath), m_width(width), m_height(height), m_pix_fmt(pix_fmt)
-		{
-			ZERO_MEM(m_buffers);
-		}
+			: m_devpath(devpath), m_width(width), m_height(height), m_pix_fmt(pix_fmt) {}
 		~V4LCapture() { close(); }
 	private:
 		V4LCapture(const V4LCapture&) = delete;
@@ -65,6 +60,7 @@ namespace v4l2cxx
 		bool _set_format(int width, int height, PixFormat pix_fmt);
 		bool _init_mmap();
 		bool _set_capture_steamon();
+		bool _set_capture_steamoff();
 		bool _queue_frames();
 
 	private:
@@ -74,9 +70,9 @@ namespace v4l2cxx
 
 		int m_fd{ -1 };
 		v4l2_buf_type m_v4l2_buf_type{ V4L2_BUF_TYPE_VIDEO_CAPTURE };
-		bool m_first_frame = false;
-		int m_buffer_index = -1;
-		struct Buffer m_buffers[NUM_OF_MAP_BUFFER];
+		int m_buffer_index{ -1 };
+		int m_numOfmapBuff{ NUM_OF_MAP_BUFFER };
+		struct Buffer m_buffers[NUM_OF_MAP_BUFFER]{};
 	};
 }
 
