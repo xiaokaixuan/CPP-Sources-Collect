@@ -11,11 +11,13 @@
 namespace v4l2cxx
 {
 	constexpr static int NUM_OF_MAP_BUFFER = 4;
-	enum class PixFormat {
+	enum class PixFormat
+	{
 		PIX_FMT_RGB332 = V4L2_PIX_FMT_RGB332,
 		PIX_FMT_YUYV = V4L2_PIX_FMT_YUYV,
 		PIX_FMT_YVYU = V4L2_PIX_FMT_YVYU,
-		PIX_FMT_MJPEG = V4L2_PIX_FMT_MJPEG
+		PIX_FMT_MJPEG = V4L2_PIX_FMT_MJPEG,
+		PIX_FMT_NV12 = V4L2_PIX_FMT_NV12
 	};
 	struct Buffer
 	{
@@ -57,6 +59,7 @@ namespace v4l2cxx
 		bool setCtrl(unsigned int v4l_id, int value);
 
 		static bool xioctl(int fd, int request, void* arg);
+		static v4l2_buf_type get_video_buffer_type(int fd);
 
 	private:
 		bool _set_format(int width, int height, PixFormat pix_fmt);
@@ -70,6 +73,7 @@ namespace v4l2cxx
 		PixFormat m_pix_fmt{ PixFormat::PIX_FMT_MJPEG };
 
 		int m_fd{ -1 };
+		v4l2_buf_type m_v4l2_buf_type{ V4L2_BUF_TYPE_VIDEO_CAPTURE };
 		bool m_first_frame = false;
 		int m_buffer_index = -1;
 		struct Buffer m_buffers[NUM_OF_MAP_BUFFER];

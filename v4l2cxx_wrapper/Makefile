@@ -7,13 +7,13 @@ OBJ_O = $(patsubst %.c,${DIR_BIN}/%.o,$(patsubst %.cpp,${DIR_BIN}/%.o,$(notdir $
 
 TARGET = v4l2_Test
 
-LIB = -I/usr/include/opencv4 /usr/lib/arm-linux-gnueabihf/libopencv_*.so
+LIBS = $(shell pkg-config --cflags opencv4) $(shell pkg-config --libs opencv4)
 
 CXX = g++
 CFLAGS += -pipe -O2 -Wall
 
 ${TARGET}:${DIR_BIN} ${OBJ_O}
-	$(CXX) $(CFLAGS) $(OBJ_O) -o $@ $(LIB) -lpthread
+	$(CXX) $(CFLAGS) $(OBJ_O) -o $@ $(LIBS) -lpthread
     
 ${DIR_BIN}/%.o:$(DIR_Root)/%.cpp $(SRC_H)
 	$(CXX) $(CFLAGS) -c  $< -o $@

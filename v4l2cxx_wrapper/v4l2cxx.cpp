@@ -39,6 +39,25 @@ bool v4l2cxx::V4LCapture::xioctl(int fd, int request, void* arg)
 	return false;
 }
 
+v4l2_buf_type v4l2cxx::V4LCapture::get_video_buffer_type(int fd)
+{
+	struct v4l2_capability cap {};
+	if (ioctl(fd, VIDIOC_QUERYCAP, &cap) == -1)
+	{
+		return V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	}
+	const __u32 device_caps = (cap.capabilities & V4L2_CAP_DEVICE_CAPS) ? cap.device_caps : cap.capabilities;
+	if (device_caps & V4L2_CAP_VIDEO_CAPTURE_MPLANE)
+	{
+		return V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+	}
+	if (device_caps & V4L2_CAP_VIDEO_CAPTURE)
+	{
+		return V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	}
+	return V4L2_BUF_TYPE_VIDEO_CAPTURE;
+}
+
 bool v4l2cxx::V4LCapture::open(const std::string& devpath)
 {
 	m_devpath = devpath;
@@ -50,6 +69,7 @@ bool v4l2cxx::V4LCapture::open(const std::string& devpath)
 		perror("ERROR: Open video device failure.\n");
 		return false;
 	}
+	m_v4l2_buf_type = get_video_buffer_type(m_fd);
 	if (!_set_format(m_width, m_height, m_pix_fmt))
 	{
 		close();
@@ -83,7 +103,7 @@ void v4l2cxx::V4LCapture::close()
 		struct v4l2_requestbuffers req;
 		ZERO_MEM(req);
 		req.count = 0;
-		req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		req.type = m_v4l2_buf_type;
 		req.memory = V4L2_MEMORY_MMAP;
 		xioctl(m_fd, VIDIOC_REQBUFS, &req);
 		::close(m_fd);
@@ -111,7 +131,7 @@ bool v4l2cxx::V4LCapture::_set_format(int width, int height, PixFormat pix_fmt)
 {
 	struct v4l2_format fmt;
 	ZERO_MEM(fmt);
-	fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	fmt.type = m_v4l2_buf_type;
 	fmt.fmt.pix.width = width;
 	fmt.fmt.pix.height = height;
 	fmt.fmt.pix.pixelformat = static_cast<unsigned int>(pix_fmt);
@@ -137,7 +157,7 @@ bool v4l2cxx::V4LCapture::_init_mmap()
 	struct v4l2_requestbuffers req;
 	ZERO_MEM(req);
 	req.count = NUM_OF_MAP_BUFFER;
-	req.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	req.type = m_v4l2_buf_type;
 	req.memory = V4L2_MEMORY_MMAP;
 	if (!xioctl(m_fd, VIDIOC_REQBUFS, &req))
 	{
@@ -160,16 +180,30 @@ bool v4l2cxx::V4LCapture::_init_mmap()
 	{
 		struct v4l2_buffer buf;
 		ZERO_MEM(buf);
-		buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		buf.type = m_v4l2_buf_type;
 		buf.memory = V4L2_MEMORY_MMAP;
 		buf.index = i;
+		struct v4l2_plane planes[1]{ 0 };
+		if (m_v4l2_buf_type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		{
+			buf.m.planes = planes;
+			buf.length = 1;
+		}
 		if (!xioctl(m_fd, VIDIOC_QUERYBUF, &buf))
 		{
 			perror("ERROR: Init mmap VIDIOC_QUERYBUF failure.\n");
 			return false;
 		}
-		m_buffers[i].length = buf.length;
-		m_buffers[i].start = mmap(nullptr, buf.length, PROT_READ | PROT_WRITE, MAP_SHARED, m_fd, buf.m.offset);
+		if (m_v4l2_buf_type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		{
+			m_buffers[i].length = buf.m.planes[0].length;
+			m_buffers[i].start = mmap(nullptr, m_buffers[i].length, PROT_READ | PROT_WRITE, MAP_SHARED, m_fd, buf.m.planes[0].m.mem_offset);
+		}
+		else
+		{
+			m_buffers[i].length = buf.length;
+			m_buffers[i].start = mmap(nullptr, buf.length, PROT_READ | PROT_WRITE, MAP_SHARED, m_fd, buf.m.offset);
+		}
 		if (MAP_FAILED == m_buffers[i].start)
 		{
 			m_buffers[i].start = nullptr;
@@ -187,7 +221,7 @@ bool v4l2cxx::V4LCapture::_set_capture_steamon()
 		perror("ERROR: Video device not opened, Set capture steamon failure.\n");
 		return false;
 	}
-	enum v4l2_buf_type type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	enum v4l2_buf_type type = m_v4l2_buf_type;
 	if (!xioctl(m_fd, VIDIOC_STREAMON, &type))
 	{
 		perror("ERROR: Set capture steamon failure.\n");
@@ -226,7 +260,7 @@ bool v4l2cxx::V4LCapture::_queue_frames()
 	for (unsigned int i = 0; i < NUM_OF_MAP_BUFFER; ++i) {
 		struct v4l2_buffer buf;
 		ZERO_MEM(buf);
-		buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		buf.type = m_v4l2_buf_type;
 		buf.memory = V4L2_MEMORY_MMAP;
 		buf.index = i;
 		if (!xioctl(m_fd, VIDIOC_QBUF, &buf))
@@ -250,9 +284,15 @@ bool v4l2cxx::V4LCapture::grabFrame(unsigned char** pp_data, unsigned int* p_siz
 	{
 		struct v4l2_buffer buf;
 		ZERO_MEM(buf);
-		buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		buf.type = m_v4l2_buf_type;
 		buf.memory = V4L2_MEMORY_MMAP;
 		buf.index = m_buffer_index;
+		struct v4l2_plane planes[1]{ 0 };
+		if (m_v4l2_buf_type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) 
+		{
+			buf.m.planes = planes;
+			buf.length = 1;
+		}
 		if (!xioctl(m_fd, VIDIOC_QBUF, &buf))
 		{
 			perror("ERROR: Grab frame VIDIOC_QBUF failure.\n");
@@ -263,7 +303,7 @@ bool v4l2cxx::V4LCapture::grabFrame(unsigned char** pp_data, unsigned int* p_siz
 	}
 	struct v4l2_buffer buf;
 	ZERO_MEM(buf);
-	buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	buf.type = m_v4l2_buf_type;
 	buf.memory = V4L2_MEMORY_MMAP;
 	if (!xioctl(m_fd, VIDIOC_DQBUF, &buf))
 	{

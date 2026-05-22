@@ -8,7 +8,8 @@
 int main()
 {
     v4l2cxx::V4LCapture cap;
-    cap.setFormat(1280, 720);
+    int width = 1280, height = 720;
+    cap.setFormat(width, height, v4l2cxx::PixFormat::PIX_FMT_NV12);
     if (!cap.open("/dev/video0"))
     {
         std::cerr << "Error opening camera." << std::endl;
@@ -22,7 +23,15 @@ int main()
     {
         unsigned char* p_data(nullptr);
         unsigned int size(0);
-        if (!cap.grabFrame(&p_data, &size)) break; // p_data is pointer to MJPG raw-data, (need cv::imdecode(cv::Mat(1, size, CV_8U, p_data),...))
+        if (!cap.grabFrame(&p_data, &size)) break;
+        // PIX_FMT_MJPEG: p_data is pointer to MJPG raw-data
+        // cv::imdecode(cv::Mat(1, size, CV_8U, p_data),...)
+        
+        // PIX_FMT_NV12: p_data is pointer to NV12 raw-data
+        // cv::Mat nv12(height * 3 / 2, width, CV_8UC1, p_data);
+        // cv::Mat bgr;
+        // cv::cvtColor(nv12, bgr, cv::COLOR_YUV2BGR_NV12);
+
         time_t new_time = time(nullptr);
         if (new_time == old_time) ++frame_num;
         else frame_num = 1;
