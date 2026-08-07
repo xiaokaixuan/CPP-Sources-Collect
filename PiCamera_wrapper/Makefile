@@ -7,12 +7,11 @@ OBJ_O = $(patsubst %.c,${DIR_BIN}/%.o,$(patsubst %.cpp,${DIR_BIN}/%.o,$(notdir $
 
 TARGET = PiCamera_Test
 
-LIB = -I/usr/include/opencv4 /usr/lib/arm-linux-gnueabihf/libopencv_*.so
-LIB += `pkg-config --libs libcamera`
+LIB := $(shell pkg-config --libs libcamera) $(shell pkg-config --libs opencv4)
 
 CXX = g++
-CFLAGS += -pipe -O2 -Wall -std=c++17 -I/usr/include/opencv4
-CFLAGS += `pkg-config --cflags libcamera`
+CFLAGS += -pipe -O2 -Wall -std=c++17
+CFLAGS += $(shell pkg-config --cflags libcamera) $(shell pkg-config --cflags opencv4)
 
 ${TARGET}:${DIR_BIN} ${OBJ_O}
 	$(CXX) $(CFLAGS) $(OBJ_O) -o $@ $(LIB) -lpthread 
