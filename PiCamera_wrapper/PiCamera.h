@@ -15,6 +15,7 @@ typedef struct tagPICAM_OUT_FRAME
 	size_t height;
 	unsigned char* buffer;
 	size_t buff_size;
+	unsigned int stride;
 } PICAM_OUT_FRAME, *LPPICAM_OUT_FRAME;
 
 

@@ -116,7 +116,7 @@ bool PiCamera::start_capture(int framerate, unsigned int exposure_us, float gain
 		perror("ERROR: Camera not opened !!!\n");
 		return false;
 	}
-	std::shared_ptr<libcamera::Request> request = camera_ptr->createRequest();
+	std::unique_ptr<libcamera::Request> request = camera_ptr->createRequest();
 	if (!request)
 	{
 		perror("ERROR: Failed to create request !!!\n");
@@ -190,11 +190,12 @@ void PiCamera::requestCompleted(libcamera::Request* request)
 		const libcamera::StreamConfiguration& streamConfig = stream->configuration();
 		unsigned int width = streamConfig.size.width;
 		unsigned int height = streamConfig.size.height;
+		unsigned int stride = streamConfig.stride;
 
 		libcamera::MappedFrameBuffer mappedBuffer(buffer, libcamera::MappedFrameBuffer::MapFlag::Read);
 		const std::vector<libcamera::Span<uint8_t>> mem = mappedBuffer.planes(); // mem[0],mem[1],mem[2] <=> YUV420
 
-		PICAM_OUT_FRAME outFrame{ width, height, static_cast<unsigned char*>(mem[0].data()), mem[0].size() };
+		PICAM_OUT_FRAME outFrame{ width, height, static_cast<unsigned char*>(mem[0].data()), mem[0].size(), stride };
 		if (frame_callback) frame_callback(outFrame);
 	}
 
