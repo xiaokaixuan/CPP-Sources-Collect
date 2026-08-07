@@ -37,9 +37,9 @@ int PiCamera::global_init()
 
 ////////////////////////////////////////////////////////////////////////////
 
-PiCamera::PiCamera(const char* devname)
+PiCamera::PiCamera(const char* devname, size_t width, size_t height)
 {
-	if (devname) open(devname);
+	if (devname) open(devname, width, height);
 }
 
 PiCamera::~PiCamera()
@@ -48,7 +48,7 @@ PiCamera::~PiCamera()
 	close();
 }
 
-bool PiCamera::open(const char* devname)
+bool PiCamera::open(const char* devname, size_t width, size_t height)
 {
 	m_devname = devname;
 	if (!sm_initor.sm_pcm)
@@ -73,10 +73,13 @@ bool PiCamera::open(const char* devname)
 	config_ptr = camera_ptr->generateConfiguration({ libcamera::StreamRole::VideoRecording });
 	for (libcamera::StreamConfiguration& streamConfig : *config_ptr)
 	{
-		streamConfig.bufferCount = 6;
-		config_ptr->validate();
+		streamConfig.size.width = width;
+		streamConfig.size.height = height;
+		streamConfig.pixelFormat = libcamera::formats::BGR888;
+		streamConfig.bufferCount = 3;
 		printf("DEBUG: Validated StreamConfiguration is: %s\n", streamConfig.toString().c_str());
 	}
+	config_ptr->validate();
 	ret = camera_ptr->configure(config_ptr.get());
 	if (0 != ret)
 	{
@@ -106,7 +109,7 @@ void PiCamera::stop_capture()
 	requests_.clear();
 }
 
-bool PiCamera::start_capture(int framerate)
+bool PiCamera::start_capture(int framerate, unsigned int exposure_us, float gain)
 {
 	if (!camera_ptr)
 	{
@@ -145,6 +148,12 @@ bool PiCamera::start_capture(int framerate)
 	}
 	camera_ptr->requestCompleted.connect(this, &PiCamera::requestCompleted);
 	libcamera::ControlList controls(camera_ptr->controls());
+	if (exposure_us > 0 || gain > 1e-6)
+	{
+		controls.set(libcamera::controls::AeEnable, false);
+		if (exposure_us > 0) controls.set(libcamera::controls::ExposureTime, exposure_us);
+		if (gain > 1e-6) controls.set(libcamera::controls::AnalogueGain, gain);
+	}
 	if (!controls.contains(libcamera::controls::FrameDurationLimits.id()))
 	{
 		int64_t frame_time = 1000000 / framerate; // in us

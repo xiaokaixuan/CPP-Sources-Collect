@@ -21,7 +21,7 @@ typedef struct tagPICAM_OUT_FRAME
 class PiCamera
 {
 public:
-	PiCamera(const char* devname = nullptr);
+	PiCamera(const char* devname = nullptr, size_t width = 1920, size_t height = 1080);
 	~PiCamera();
 
 public:
@@ -29,12 +29,12 @@ public:
 	static void print_cameras();
 
 public:
-	bool open(const char* devname);
+	bool open(const char* devname, size_t width, size_t height);
 	void close();
 
 	inline bool is_opened() const { return camera_ptr.get(); }
 
-	bool start_capture(int framerate = 30);
+	bool start_capture(int framerate = 30, unsigned int exposure_us = 0, float gain = 0);
 	void stop_capture();
 
 	void registerFrameCallback(const std::function<void(const PICAM_OUT_FRAME& frame)>& callback) { frame_callback = callback; }

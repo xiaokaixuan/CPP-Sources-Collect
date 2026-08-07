@@ -10,7 +10,7 @@ int main() {
 
 	PiCamera::print_cameras();
 
-	PiCamera cm("/base/soc/i2c0mux/i2c@1/imx296@1a");
+	PiCamera cm("/base/soc/i2c0mux/i2c@1/imx296@1a", 1920, 1080);
 
 	int icount = 0;
 	time_t itime = 0;
@@ -30,7 +30,7 @@ int main() {
 
 		});
 
-	cm.start_capture(60); // framerate = 60
+	cm.start_capture(30, 1500, 1); // framerate = 60
 
 	getchar();
 
