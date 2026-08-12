@@ -75,18 +75,11 @@ bool PiCamera::open(const char* devname, size_t width, size_t height)
 	{
 		streamConfig.size.width = width;
 		streamConfig.size.height = height;
-		streamConfig.pixelFormat = libcamera::formats::BGR888;
+		streamConfig.pixelFormat = libcamera::formats::RGB888;
 		streamConfig.bufferCount = 3;
 		printf("DEBUG: Validated StreamConfiguration is: %s\n", streamConfig.toString().c_str());
 	}
 	config_ptr->validate();
-	ret = camera_ptr->configure(config_ptr.get());
-	if (0 != ret)
-	{
-		fprintf(stderr, "ERROR: camera_ptr->configure error: %#x\n", ret);
-		return false;
-	}
-	allocator_ = new libcamera::FrameBufferAllocator(camera_ptr);
 	return true;
 }
 
@@ -107,21 +100,29 @@ void PiCamera::stop_capture()
 		camera_ptr->requestCompleted.disconnect(this, &PiCamera::requestCompleted);
 	}
 	requests_.clear();
+	if (allocator_)
+	{
+		delete allocator_;
+		allocator_ = nullptr;
+	}
 }
 
 bool PiCamera::start_capture(int framerate, unsigned int exposure_us, float gain)
 {
-	if (!camera_ptr)
+	if (!camera_ptr || !config_ptr)
 	{
 		perror("ERROR: Camera not opened !!!\n");
 		return false;
 	}
-	std::unique_ptr<libcamera::Request> request = camera_ptr->createRequest();
-	if (!request)
+	requests_.clear();
+	int ret = camera_ptr->configure(config_ptr.get());
+	if (0 != ret)
 	{
-		perror("ERROR: Failed to create request !!!\n");
+		fprintf(stderr, "ERROR: camera_ptr->configure: %#x\n", ret);
 		return false;
 	}
+	if (allocator_) delete allocator_;
+	allocator_ = new libcamera::FrameBufferAllocator(camera_ptr);
 	for (const libcamera::StreamConfiguration& streamConfig : *config_ptr)
 	{
 		libcamera::Stream* stream = streamConfig.stream();
@@ -159,7 +160,7 @@ bool PiCamera::start_capture(int framerate, unsigned int exposure_us, float gain
 		int64_t frame_time = 1000000 / framerate; // in us
 		controls.set(libcamera::controls::FrameDurationLimits, { frame_time, frame_time });
 	}
-	int ret = camera_ptr->start(&controls);
+	ret = camera_ptr->start(&controls);
 	if (0 != ret)
 	{
 		fprintf(stderr, "ERROR: camera_ptr->start error: %#x\n", ret);
